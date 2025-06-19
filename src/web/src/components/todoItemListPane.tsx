@@ -59,6 +59,7 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
     const [items, setItems] = useState(createListItems(props.items || []));
     const [selectedItems, setSelectedItems] = useState<TodoItem[]>([]);
     const [isDoneCategoryCollapsed, setIsDoneCategoryCollapsed] = useState(true);
+    const [tick, setTick] = useState(0); // For realtime countdown
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const selection = new Selection({
@@ -98,6 +99,14 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
         }
 
     }, [items.length, props.selectedItem, selectedItems, selection])
+
+    // Tick interval for countdown
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTick(t => t + 1);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const groups: IGroup[] = [
         {
@@ -154,6 +163,7 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
     const columns: IColumn[] = [
         { key: 'name', name: 'Name', fieldName: 'name', minWidth: 100 },
         { key: 'dueDate', name: 'Due', fieldName: 'dueDate', minWidth: 100 },
+        { key: 'countdown', name: 'Countdown', fieldName: 'countdown', minWidth: 120 }, // Added countdown column
         { key: 'completedDate', name: 'Completed', fieldName: 'completedDate', minWidth: 100 },
     ];
 
@@ -168,6 +178,8 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
     }
 
     const renderItemColumn = (item: TodoDisplayItem, _index?: number, column?: IColumn) => {
+        // Reference tick to ensure re-render every second
+        void tick;
         const fieldContent = item[column?.fieldName as keyof TodoDisplayItem] as string;
 
         switch (column?.key) {
@@ -183,6 +195,25 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
                         }
                     </>
                 );
+            case "countdown": {
+                // Calculate countdown from now to dueDate, including seconds
+                let countdownText = "N/A";
+                if (item.dueDate && item.dueDate !== 'None') {
+                    const due = new Date(item.dueDate);
+                    const now = new Date();
+                    const diff = due.getTime() - now.getTime();
+                    if (diff > 0) {
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+                        const seconds = Math.floor((diff / 1000) % 60);
+                        countdownText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                    } else {
+                        countdownText = "Due!";
+                    }
+                }
+                return <Text variant="small">{countdownText}</Text>;
+            }
             default:
                 return (<Text variant="small">{fieldContent}</Text>)
         }

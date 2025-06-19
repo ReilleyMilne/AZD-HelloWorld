@@ -6,7 +6,7 @@ This is a [Create React App](https://github.com/facebook/create-react-app) based
 
 Create a `.env` file within the base of the `reactd-fluent` folder with the following configuration:
 
-- `VITE_API_BASE_URL` - Base URL for all api requests, (ex: `http://localhost:3100`)
+- `$env:VITE_API_BASE_URL='https://app-api-3msiernrzxpc2.azurewebsites.net/'` - Base URL for all api requests, (ex: `http://localhost:3100`)
 
 > Note: The URL must include the schema, either `http://` or `https://`.
 
