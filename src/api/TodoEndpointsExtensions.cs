@@ -94,6 +94,7 @@ namespace SimpleTodo.Api
                 Name = item.name,
                 Description = item.description,
                 State = item.state,
+                DueDate = item.dueDate,
                 CreatedDate = DateTimeOffset.UtcNow
             };
 
@@ -122,12 +123,54 @@ namespace SimpleTodo.Api
                 return TypedResults.NotFound();
             }
 
+            var oldState = existingItem.State;
+            var oldDueDate = existingItem.DueDate;
+
             existingItem.Name = item.name;
             existingItem.Description = item.description;
-            existingItem.CompletedDate = item.completedDate;
             existingItem.DueDate = item.dueDate;
             existingItem.State = item.state;
             existingItem.UpdatedDate = DateTimeOffset.UtcNow;
+
+            // Handle edge case 1: If an item's due date in the done category is changed to a later date, 
+            // it should be moved back up to the todo or in progress tab
+            // This should only happen when the due date is explicitly being moved to a significantly later time
+            if (oldState == "done" && item.state == "done" && 
+                item.dueDate.HasValue && oldDueDate.HasValue &&
+                item.dueDate.Value != oldDueDate.Value) // Due date was actually changed
+            {
+                var now = DateTimeOffset.UtcNow;
+                var timeDifference = item.dueDate.Value - oldDueDate.Value;
+                
+                // Only move back to todo if:
+                // 1. The new due date is in the future
+                // 2. The due date was moved forward by at least 1 hour (to avoid minor adjustments)
+                if (item.dueDate.Value > now && timeDifference.TotalHours >= 1)
+                {
+                    // Move back to todo if due date is significantly extended
+                    existingItem.State = "todo";
+                    existingItem.CompletedDate = null; // Clear completed date since it's no longer done
+                }
+            }
+
+            // Handle edge case 2: When an item is changed from in progress to done, ensure state is set to done
+            // and handle edge case 3: Always retain due date when marked as complete
+            if (item.state == "done" && oldState != "done")
+            {
+                existingItem.State = "done";
+                existingItem.CompletedDate = item.completedDate ?? DateTimeOffset.UtcNow;
+                // Due date is preserved - no need to clear it
+            }
+            else if (item.state != "done")
+            {
+                // If moving away from done state, clear completed date
+                existingItem.CompletedDate = null;
+            }
+            else
+            {
+                // For other state changes, update completed date if provided
+                existingItem.CompletedDate = item.completedDate;
+            }
 
             await repository.UpdateListItem(existingItem);
 
