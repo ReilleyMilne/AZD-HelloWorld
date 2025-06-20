@@ -43,8 +43,6 @@ export class ItemService extends RestService<TodoItem> {
             description: entity.description
         };
 
-        console.log('Sending update data to API:', JSON.stringify(updateData, null, 2));
-
         const response = await this.client.request<TodoItem>({
             method: 'PUT',
             url: entity.id,

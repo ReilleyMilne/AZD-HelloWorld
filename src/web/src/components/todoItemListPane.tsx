@@ -5,7 +5,7 @@ import { TodoItem, TodoItemState, TodoList } from '../models';
 import { stackItemPadding } from '../ux/styles';
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, isPast } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { locationService, LocationData } from '../services/locationService';
+import { locationService } from '../services/locationService';
 
 interface TodoItemListPaneProps {
     list?: TodoList
@@ -66,8 +66,6 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
     const [selectedItems, setSelectedItems] = useState<TodoItem[]>([]);
     const [isDoneCategoryCollapsed, setIsDoneCategoryCollapsed] = useState(true);
     const [tick, setTick] = useState(0); // For realtime countdown
-    const [userLocation, setUserLocation] = useState<LocationData | null>(null);
-    const [locationLoading, setLocationLoading] = useState(false);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const selection = new Selection({
@@ -108,23 +106,6 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
             setTick(t => t + 1);
         }, 1000);
         return () => clearInterval(interval);
-    }, []);
-
-    // Get user location on component mount
-    useEffect(() => {
-        const getUserLocation = async () => {
-            setLocationLoading(true);
-            try {
-                const location = await locationService.getCurrentLocation();
-                setUserLocation(location);
-            } catch (error) {
-                console.warn('Could not get user location:', error);
-            } finally {
-                setLocationLoading(false);
-            }
-        };
-
-        getUserLocation();
     }, []);
 
     const groups: IGroup[] = useMemo(() => [
@@ -172,15 +153,10 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
     }
 
     const completeItems = async () => {
-        console.log('Completing items:', selectedItems);
-        
         // Process each selected item for completion
         for (const item of selectedItems) {
-            console.log('Processing item for completion:', item.name, 'Current state:', item.state);
             await props.onComplete(item);
         }
-        
-        console.log('All items completed');
     }
 
     const deleteItems = () => {
@@ -296,8 +272,8 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
                 if (item.originalDueDate && item.originalDueDate !== 'None') {
                     const due = new Date(item.originalDueDate);
                     
-                    // Get current time in user's timezone
-                    const userTimezone = userLocation?.timezone || locationService.getCurrentTimezone();
+                    // Get current time using default timezone
+                    const userTimezone = locationService.getCurrentTimezone();
                     const now = new Date();
                     const zonedNow = toZonedTime(now, userTimezone);
                     const zonedDue = toZonedTime(due, userTimezone);
@@ -325,9 +301,7 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
                             countdownColor = '#107c10';
                         }
                         
-                        // Add location info if available
-                        const locationInfo = userLocation?.city ? ` (${userLocation.city})` : '';
-                        countdownText = `${days}d ${hours}h ${minutes}m ${seconds}s${locationInfo}`;
+                        countdownText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
                     }
                 }
                 return (
@@ -383,22 +357,6 @@ const TodoItemListPane: FC<TodoItemListPaneProps> = (props: TodoItemListPaneProp
                     </Stack>
                 </form>
             </Stack.Item>
-            {locationLoading && (
-                <Stack.Item>
-                    <Text variant="small" style={{ color: '#666', fontStyle: 'italic' }}>
-                        <FontIcon iconName="Location" style={{ marginRight: '5px' }} />
-                        Getting your location for accurate countdown...
-                    </Text>
-                </Stack.Item>
-            )}
-            {userLocation && !locationLoading && (
-                <Stack.Item>
-                    <Text variant="small" style={{ color: '#666', fontStyle: 'italic' }}>
-                        <FontIcon iconName="Location" style={{ marginRight: '5px' }} />
-                        Location: {userLocation.city || 'Unknown'}, Timezone: {userLocation.timezone}
-                    </Text>
-                </Stack.Item>
-            )}
             {items.length > 0 &&
                 <Stack.Item>
                     <MarqueeSelection selection={selection}>

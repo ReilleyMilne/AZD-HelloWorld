@@ -70,8 +70,6 @@ const HomePage = () => {
     }
 
     const onItemCompleted = async (item: TodoItem) => {
-        console.log('Completing item:', item.name, 'Current state:', item.state);
-        
         // Create a new item object to avoid mutating the original
         const now = new Date();
         const updatedItem: TodoItem = {
@@ -81,13 +79,9 @@ const HomePage = () => {
             // Retain the due date - don't clear it when marking complete
         };
         
-        console.log('Updated item state:', updatedItem.state, 'Completed date:', updatedItem.completedDate);
-        console.log('Full updated item object:', JSON.stringify(updatedItem, null, 2));
-        
         try {
             // Save the item first
-            const savedItem = await actions.items.save(item.listId, updatedItem);
-            console.log('Item saved successfully:', savedItem);
+            await actions.items.save(item.listId, updatedItem);
             
             // Force a reload of the items list to ensure the UI updates
             if (item.listId) {
