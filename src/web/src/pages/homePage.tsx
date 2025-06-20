@@ -69,10 +69,38 @@ const HomePage = () => {
         return await actions.items.save(item.listId, item);
     }
 
-    const onItemCompleted = (item: TodoItem) => {
-        item.state = TodoItemState.Done;
-        item.completedDate = new Date();
-        actions.items.save(item.listId, item);
+    const onItemCompleted = async (item: TodoItem) => {
+        console.log('Completing item:', item.name, 'Current state:', item.state);
+        
+        // Create a new item object to avoid mutating the original
+        const now = new Date();
+        const updatedItem: TodoItem = {
+            ...item,
+            state: TodoItemState.Done,
+            completedDate: now,
+            // Retain the due date - don't clear it when marking complete
+        };
+        
+        console.log('Updated item state:', updatedItem.state, 'Completed date:', updatedItem.completedDate);
+        console.log('Full updated item object:', JSON.stringify(updatedItem, null, 2));
+        
+        try {
+            // Save the item first
+            const savedItem = await actions.items.save(item.listId, updatedItem);
+            console.log('Item saved successfully:', savedItem);
+            
+            // Force a reload of the items list to ensure the UI updates
+            if (item.listId) {
+                await actions.items.list(item.listId);
+                
+                // If this item is currently selected, reload it to update the detail pane
+                if (appContext.state.selectedItem?.id === item.id) {
+                    await actions.items.load(item.listId, item.id!);
+                }
+            }
+        } catch (error) {
+            console.error('Error saving item:', error);
+        }
     }
 
     const onItemSelected = (item?: TodoItem) => {

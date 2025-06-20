@@ -87,6 +87,44 @@ public class ListsRepository
         await _itemsCollection.ReplaceItemAsync(existingItem, existingItem.Id, new PartitionKey(existingItem.Id));
     }
 
+    /// <summary>
+    /// Updates an item with smart state transitions based on due date and completion status
+    /// </summary>
+    public async Task UpdateListItemWithStateLogic(TodoItem existingItem, string newState, DateTimeOffset? newDueDate, DateTimeOffset? newCompletedDate)
+    {
+        var oldState = existingItem.State;
+        var now = DateTimeOffset.UtcNow;
+
+        existingItem.State = newState;
+        existingItem.DueDate = newDueDate;
+        existingItem.UpdatedDate = now;
+
+        // Edge case 1: If an item's due date in the done category is changed to a later date, 
+        // it should be moved back up to the todo or in progress tab
+        if (oldState == "done" && newState == "done" && newDueDate.HasValue && newDueDate.Value > now)
+        {
+            existingItem.State = "todo";
+            existingItem.CompletedDate = null;
+        }
+        // Edge case 2 & 3: When marking as done, ensure state is properly set and due date is retained
+        else if (newState == "done" && oldState != "done")
+        {
+            existingItem.State = "done";
+            existingItem.CompletedDate = newCompletedDate ?? now;
+            // Due date is preserved automatically
+        }
+        else if (newState != "done")
+        {
+            existingItem.CompletedDate = null;
+        }
+        else
+        {
+            existingItem.CompletedDate = newCompletedDate;
+        }
+
+        await _itemsCollection.ReplaceItemAsync(existingItem, existingItem.Id, new PartitionKey(existingItem.Id));
+    }
+
     private async Task<List<T>> ToListAsync<T>(IQueryable<T> queryable, int? skip, int? batchSize)
     {
         if (skip != null)
